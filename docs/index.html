@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Fiscal e Patrimonial — EQI/BTG</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+:root{
+  color-scheme: light;
+  --bg-primary:#f4f5f7; --bg-card:#ffffff; --bg-header:#12213b;
+  --text-primary:#1c2430; --text-secondary:#6b7686; --text-on-dark:#ffffff;
+  --c1:#2f6fed; --c2:#e08a3c; --c3:#2fa85a; --c4:#d64550; --c5:#8a6fd1; --c6:#3aa7a0; --c7:#c9a227; --c8:#4a5a7a;
+  --positive:#2fa85a; --negative:#d64550;
+  --gap:16px; --radius:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg-primary);color:var(--text-primary);line-height:1.5;}
+.dashboard-container{max-width:1440px;margin:0 auto;padding:var(--gap);}
+.dashboard-header{background:var(--bg-header);color:var(--text-on-dark);padding:22px 26px;border-radius:var(--radius);margin-bottom:var(--gap);}
+.dashboard-header h1{font-size:20px;font-weight:600;}
+.dashboard-header .sub{font-size:13px;color:rgba(255,255,255,.65);margin-top:4px;}
+.dashboard-header select{padding:6px 10px;border-radius:6px;border:none;font-size:13px;}
+.tabs{display:flex;gap:4px;margin-bottom:var(--gap);background:var(--bg-card);border-radius:var(--radius);padding:6px;box-shadow:0 1px 3px rgba(0,0,0,.08);flex-wrap:wrap;}
+.tab-btn{flex:1;min-width:110px;padding:11px 14px;border:none;background:transparent;border-radius:8px;font-size:13px;font-weight:600;color:var(--text-secondary);cursor:pointer;transition:all .15s;}
+.tab-btn:hover{background:#f0f2f6;color:var(--text-primary);}
+.tab-btn.active{background:var(--bg-header);color:#fff;}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:var(--gap);margin-bottom:var(--gap);}
+.kpi-card{background:var(--bg-card);border-radius:var(--radius);padding:20px 22px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.kpi-label{font-size:12px;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.kpi-value{font-size:26px;font-weight:700;}
+.kpi-sub{font-size:12px;color:var(--text-secondary);margin-top:4px;}
+.kpi-value.positive{color:var(--positive);}
+.kpi-value.negative{color:var(--negative);}
+.section-title{font-size:15px;font-weight:600;margin:22px 0 10px 2px;color:var(--text-primary);}
+.chart-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:var(--gap);margin-bottom:var(--gap);}
+.chart-container{background:var(--bg-card);border-radius:var(--radius);padding:20px 22px;box-shadow:0 1px 3px rgba(0,0,0,.08);}
+.chart-container h3{font-size:13px;font-weight:600;margin-bottom:14px;color:var(--text-primary);}
+.chart-container canvas{max-height:300px;}
+.chart-container.tall canvas{max-height:340px;}
+.table-section{background:var(--bg-card);border-radius:var(--radius);padding:20px 22px;box-shadow:0 1px 3px rgba(0,0,0,.08);overflow-x:auto;margin-bottom:var(--gap);}
+.table-section h3{font-size:13px;font-weight:600;margin-bottom:14px;}
+.data-table{width:100%;border-collapse:collapse;font-size:13px;}
+.data-table thead th{text-align:left;padding:9px 12px;border-bottom:2px solid #e3e6eb;color:var(--text-secondary);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;cursor:pointer;user-select:none;}
+.data-table thead th:hover{color:var(--text-primary);background:#f8f9fb;}
+.data-table tbody td{padding:9px 12px;border-bottom:1px solid #f0f1f4;}
+.data-table tbody tr:hover{background:#f8f9fb;}
+.data-table tbody tr:last-child td{border-bottom:none;}
+.data-table tbody tr.clickable{cursor:pointer;}
+.data-table tbody tr.clickable:hover{background:#eaf0ff;}
+.note{font-size:12px;color:var(--text-secondary);margin-top:10px;line-height:1.6;}
+.dashboard-footer{text-align:center;font-size:12px;color:var(--text-secondary);padding:16px 0 6px;}
+.modal-sub{font-size:13px;color:var(--text-secondary);margin-top:4px;}
+.ativo-voltar{background:var(--bg-card);border:1px solid #e3e6eb;border-radius:8px;padding:8px 16px;font-size:13px;font-weight:600;color:var(--text-primary);cursor:pointer;margin-bottom:14px;}
+.ativo-voltar:hover{background:#f0f2f6;}
+.ativo-header h2{font-size:22px;font-weight:700;}
+.kpi-value.neutro{color:var(--text-primary);}
+.erro{background:#feeaea;color:var(--negative);padding:16px;border-radius:8px;font-size:13px;}
+.tag{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600;}
+.tag.isento{background:#e6f7ec;color:var(--positive);}
+.tag.taxavel{background:#feeaea;color:var(--negative);}
+.tag.neutro{background:#eef1f6;color:var(--text-secondary);}
+.filter-row{display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap;}
+.filter-row select, .filter-row input{padding:7px 10px;border-radius:6px;border:1px solid #d8dce3;font-size:13px;}
+#loading{padding:60px 20px;text-align:center;color:var(--text-secondary);font-size:14px;}
+@media (max-width:768px){
+  .dashboard-header{flex-direction:column;align-items:flex-start;}
+  .kpi-row{grid-template-columns:repeat(2,1fr);}
+  .chart-row{grid-template-columns:1fr;}
+  .tabs{flex-wrap:wrap;}
+}
+</style>
+</head>
+<body>
+
+<div id="loading">Carregando dados do Supabase (financas-jose)…</div>
+
+<div class="dashboard-container" id="app" style="display:none;">
+
+  <header class="dashboard-header">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+      <div>
+        <h1>Painel Fiscal e Patrimonial</h1>
+        <div class="sub" id="header-sub">Conectado ao Supabase · schema eqi_financas</div>
+      </div>
+      <div id="conta-selector-wrap" style="display:none;">
+        <select id="conta-selector"></select>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" id="main-tabs">
+    <button class="tab-btn active" data-tab="geral">Geral</button>
+    <button class="tab-btn" data-tab="posicao">Posição</button>
+    <button class="tab-btn" data-tab="rentabilidade">Rentabilidade</button>
+    <button class="tab-btn" data-tab="impostos">Impostos</button>
+    <button class="tab-btn" data-tab="rendimentos">Rendimentos</button>
+    <button class="tab-btn" data-tab="patrimonio-cc">Patrimônio</button>
+    <button class="tab-btn" data-tab="extrato">Extrato</button>
+  </nav>
+
+  <!-- ===================== ABA GERAL ===================== -->
+  <div class="tab-panel active" id="tab-geral">
+    <section class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Patrimônio total</div>
+        <div class="kpi-value" id="g-kpi-patrimonio"></div>
+        <div class="kpi-sub" id="g-kpi-patrimonio-sub"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Rendimentos (proventos)</div>
+        <div class="kpi-value positive" id="g-kpi-rendimentos"></div>
+        <div class="kpi-sub">soma do período disponível</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Ganho com trades</div>
+        <div class="kpi-value" id="g-kpi-trades"></div>
+        <div class="kpi-sub">day trade + swing, taxável + isento</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">IR devido no período</div>
+        <div class="kpi-value negative" id="g-kpi-ir"></div>
+        <div class="kpi-sub">day trade 20% + swing FII 20%</div>
+      </div>
+    </section>
+
+    <div class="section-title">Composição do patrimônio</div>
+    <section class="chart-row">
+      <div class="chart-container tall">
+        <h3>Patrimônio por classe de ativo</h3>
+        <canvas id="chart-patrimonio"></canvas>
+      </div>
+      <div class="chart-container tall">
+        <h3>Rendimentos vs. Ganho de capital, por mês (R$)</h3>
+        <canvas id="chart-geral-mensal"></canvas>
+      </div>
+    </section>
+
+    <div class="table-section">
+      <h3>Resumo mensal completo</h3>
+      <div id="tabela-resumo"></div>
+      <div class="note">Dados lidos ao vivo da tabela <code>eqi_financas.resumo_mensal</code>. Qualquer atualização feita no banco aparece aqui na próxima abertura da página.</div>
+    </div>
+  </div>
+
+  <!-- ===================== ABA POSICAO ===================== -->
+  <div class="tab-panel" id="tab-posicao">
+    <section class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Patrimônio total</div>
+        <div class="kpi-value" id="p-kpi-total"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Renda variável</div>
+        <div class="kpi-value" id="p-kpi-rv"></div>
+        <div class="kpi-sub">ações + FII + ETFs + aluguel</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Renda fixa + fundos fechados</div>
+        <div class="kpi-value" id="p-kpi-rf"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Conta corrente</div>
+        <div class="kpi-value" id="p-kpi-cc"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Valor de mercado (RV)</div>
+        <div class="kpi-value" id="p-kpi-rv-mercado"></div>
+        <div class="kpi-sub" id="p-kpi-rv-mercado-sub"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Lucro/Prejuízo não realizado (RV)</div>
+        <div class="kpi-value" id="p-kpi-rv-lucro"></div>
+        <div class="kpi-sub" id="p-kpi-rv-lucro-sub"></div>
+      </div>
+    </section>
+
+    <section class="chart-row">
+      <div class="chart-container tall">
+        <h3>Patrimônio por classe</h3>
+        <canvas id="chart-posicao-classe"></canvas>
+      </div>
+      <div class="chart-container tall">
+        <h3>Composição da renda fixa</h3>
+        <canvas id="chart-rendafixa"></canvas>
+      </div>
+    </section>
+
+    <div class="table-section">
+      <h3>Patrimônio detalhado por classe</h3>
+      <div id="tabela-patrimonio"></div>
+    </div>
+
+    <div class="table-section">
+      <h3>Renda variável — posição por ativo</h3>
+      <div id="tabela-ativos"></div>
+      <div class="note"><strong>Preço atual</strong> e <strong>Valor de mercado</strong> vêm da cotação de fechamento mais recente (buscada automaticamente todo dia útil às 18h30 via brapi.dev). Ativos sem cotação no dia (ex.: direitos de subscrição, como TEPP12) aparecem com "-". "Valor investido" continua sendo custo médio × quantidade (custo de aquisição), para comparação. Clique num ativo para ver a página detalhada.</div>
+    </div>
+
+    <div class="table-section">
+      <h3>Posição de renda fixa</h3>
+      <div id="tabela-rendafixa"></div>
+    </div>
+  </div>
+
+  <!-- ===================== ABA RENTABILIDADE ===================== -->
+  <div class="tab-panel" id="tab-rentabilidade">
+    <section class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Artesanal CDI — TIR anualizada</div>
+        <div class="kpi-value positive">15,06% a.a.</div>
+        <div class="kpi-sub">~120% do CDI (CDI implícito ~12,55% a.a.)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Terramagna FC — desde dez/2025</div>
+        <div class="kpi-value negative">-97,4%</div>
+        <div class="kpi-sub">preço/cota (amortização, não perda real)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Terramagna II — desde dez/2025</div>
+        <div class="kpi-value negative">-97,5%</div>
+        <div class="kpi-sub">preço/cota (amortização, não perda real)</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Credito Consig — desde a compra</div>
+        <div class="kpi-value negative">-37,6%</div>
+        <div class="kpi-sub">preço/cota (amortização parcial)</div>
+      </div>
+    </section>
+
+    <div class="section-title">Performance de trading</div>
+    <section class="chart-row">
+      <div class="chart-container tall">
+        <h3>Day trade + Swing trade — taxável vs isento (R$)</h3>
+        <canvas id="chart-trades"></canvas>
+      </div>
+      <div class="chart-container tall">
+        <h3>IR devido por mês (R$)</h3>
+        <canvas id="chart-ir"></canvas>
+      </div>
+    </section>
+
+    <div class="table-section">
+      <h3>Fundos — retorno desde a aplicação</h3>
+      <table class="data-table">
+        <thead><tr><th>Fundo</th><th>Aplicado</th><th>Saldo líquido hoje</th><th>Retorno</th><th>Observação</th></tr></thead>
+        <tbody>
+          <tr><td>Artesanal CDI FIC FIDC II</td><td>R$ 75.008,12</td><td>R$ 84.352,00</td><td style="color:var(--positive);font-weight:700">+12,46% (TIR 15,06% a.a.)</td><td style="font-size:12px;color:#6b7686">Fundo CDI puro, sem amortização — só acumula.</td></tr>
+          <tr><td>Terramagna FC FIAGRO</td><td>R$ 29.807,74 (dez/25)</td><td>R$ 764,12</td><td style="color:var(--negative);font-weight:700">-97,4% no preço/cota</td><td style="font-size:12px;color:#6b7686">Cotas inalteradas — já devolveu boa parte em amortização.</td></tr>
+          <tr><td>Terramagna II FC FIAGRO</td><td>R$ 91.453,00 (dez/25)</td><td>R$ 2.276,11</td><td style="color:var(--negative);font-weight:700">-97,5% no preço/cota</td><td style="font-size:12px;color:#6b7686">Mesmo padrão de amortização acelerada.</td></tr>
+          <tr><td>Credito Consig Prefix</td><td>R$ 6.993,93 (07/04/25)</td><td>R$ 4.252,27</td><td style="color:var(--negative);font-weight:700">-37,6% no preço/cota</td><td style="font-size:12px;color:#6b7686">Amortização parcial, menos agressiva.</td></tr>
+          <tr><td>YVY Capital II FI-Infra</td><td>R$ 7.000,00 (05/05/25)</td><td>R$ 7.069,29</td><td style="color:var(--positive);font-weight:700">+1,0%</td><td style="font-size:12px;color:#6b7686">Estável.</td></tr>
+        </tbody>
+      </table>
+      <div class="note">Tabela de referência mantida manualmente (a TIR não está armazenada no banco). "Retorno" negativo no preço/cota dos FIDCs agro não é perda — é devolução de capital via amortização.</div>
+    </div>
+  </div>
+
+  <!-- ===================== ABA IMPOSTOS ===================== -->
+  <div class="tab-panel" id="tab-impostos">
+    <section class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Próximo DARF a vencer</div>
+        <div class="kpi-value negative" id="i-kpi-proximo-valor"></div>
+        <div class="kpi-sub" id="i-kpi-proximo-sub"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total de IR no período</div>
+        <div class="kpi-value negative" id="i-kpi-total"></div>
+        <div class="kpi-sub">day trade + swing, todos os meses</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">IR day trade (total)</div>
+        <div class="kpi-value" id="i-kpi-daytrade"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">IR swing trade (total)</div>
+        <div class="kpi-value" id="i-kpi-swing"></div>
+      </div>
+    </section>
+
+    <section class="chart-row">
+      <div class="chart-container tall">
+        <h3>DARF por mês (R$)</h3>
+        <canvas id="chart-impostos"></canvas>
+      </div>
+    </section>
+
+    <div class="table-section">
+      <h3>DARF por mês de apuração</h3>
+      <div id="tabela-impostos"></div>
+      <div class="note"><strong>Atenção:</strong> código de receita 6015 (Ganhos Líquidos em Operações em Bolsa — Ações), usado tanto para day trade quanto swing trade. Vencimento calculado como último dia útil do mês seguinte ao da apuração, considerando só fins de semana (não desconta feriados). Meses com total abaixo de R$ 10,00 são dispensados de DARF pela regra da Receita Federal. <strong>Não sou contador — confirme código, valor e data com seu contador antes de gerar/pagar a guia.</strong></div>
+    </div>
+  </div>
+
+  <!-- ===================== ABA RENDIMENTOS ===================== -->
+  <div class="tab-panel" id="tab-rendimentos">
+    <section class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Total de rendimentos</div>
+        <div class="kpi-value positive" id="r-kpi-total"></div>
+        <div class="kpi-sub">soma do período disponível</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Amortizações recebidas</div>
+        <div class="kpi-value" id="r-kpi-amort"></div>
+        <div class="kpi-sub">devolução de capital, não é ganho</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Mês com maior rendimento</div>
+        <div class="kpi-value positive" id="r-kpi-melhor-mes"></div>
+      </div>
+    </section>
+
+    <section class="chart-row">
+      <div class="chart-container tall">
+        <h3>Rendimentos por mês (R$)</h3>
+        <canvas id="chart-rendimentos"></canvas>
+      </div>
+      <div class="chart-container tall">
+        <h3>Rendimentos por categoria (total do período)</h3>
+        <canvas id="chart-rend-categoria"></canvas>
+      </div>
+    </section>
+
+    <div class="table-section">
+      <h3>Rendimentos por mês</h3>
+      <div id="tabela-rendimentos"></div>
+    </div>
+
+    <div class="table-section">
+      <h3>Rendimentos por ativo</h3>
+      <div id="tabela-rend-ativo"></div>
+      <div class="note">Exclui amortização (devolução de capital, mostrada separada no card acima) e vendas de CRA/CRI (devolução de principal). "RF direta" agrupa cupons/rendimentos sem ticker de bolsa. Clique num ativo para ver a página detalhada.</div>
+    </div>
+  </div>
+
+  <!-- ===================== ABA PATRIMONIO / FLUXO DE CAIXA ===================== -->
+  <div class="tab-panel" id="tab-patrimonio-cc">
+    <section class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Saldo em conta corrente (atual)</div>
+        <div class="kpi-value" id="pc-kpi-saldo-atual"></div>
+        <div class="kpi-sub" id="pc-kpi-saldo-atual-sub"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total aportado no período</div>
+        <div class="kpi-value positive" id="pc-kpi-aportes"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total retirado no período</div>
+        <div class="kpi-value negative" id="pc-kpi-retiradas"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Crescimento líquido de aportes</div>
+        <div class="kpi-value" id="pc-kpi-crescimento"></div>
+        <div class="kpi-sub">saldo final − saldo inicial − aportes + retiradas</div>
+      </div>
+    </section>
+
+    <div class="section-title">Entradas e saídas de caixa</div>
+    <section class="chart-row">
+      <div class="chart-container tall">
+        <h3>Saldo em conta corrente ao final de cada mês (R$)</h3>
+        <canvas id="chart-patrimonio-saldo"></canvas>
+      </div>
+      <div class="chart-container tall">
+        <h3>Aportes vs. Retiradas por mês (R$)</h3>
+        <canvas id="chart-patrimonio-fluxo"></canvas>
+      </div>
+    </section>
+
+    <div class="table-section">
+      <h3>Evolução mensal — caixa, aportes, retiradas e resultados</h3>
+      <div id="tabela-patrimonio-historico"></div>
+      <div class="note"><strong>O que essa tabela mostra:</strong> "Saldo CC inicial/final" é o saldo em dinheiro na conta corrente (não inclui ativos investidos). "Aportes"/"Retiradas" são movimentações de dinheiro entre você e a conta (TED, PIX). "Rendimentos" e "Resultado operações" vêm do resumo mensal já calculado. <strong>Isto ainda não é o patrimônio total</strong> (que inclui os ativos investidos — o valor de mercado atualizado da renda variável já aparece na aba Posição) — é o rastreamento do fluxo de caixa mês a mês, que já permite separar o que é dinheiro novo (aporte) do que é resultado da carteira.</div>
+    </div>
+  </div>
+
+  <!-- ===================== ABA EXTRATO ===================== -->
+  <div class="tab-panel" id="tab-extrato">
+    <section class="kpi-row">
+      <div class="kpi-card">
+        <div class="kpi-label">Total de créditos (período)</div>
+        <div class="kpi-value positive" id="ex-kpi-creditos"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total de débitos (período)</div>
+        <div class="kpi-value negative" id="ex-kpi-debitos"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Nº de lançamentos</div>
+        <div class="kpi-value neutro" id="ex-kpi-qtd"></div>
+      </div>
+    </section>
+
+    <div class="table-section">
+      <h3>Extrato de conta corrente</h3>
+      <div class="filter-row">
+        <label style="font-size:13px;color:var(--text-secondary);">Mês:</label>
+        <select id="extrato-filtro-mes"><option value="">Todos</option></select>
+        <label style="font-size:13px;color:var(--text-secondary);">Categoria:</label>
+        <select id="extrato-filtro-cat"><option value="">Todas</option></select>
+        <input type="text" id="extrato-filtro-texto" placeholder="Buscar na descrição…" style="flex:1;min-width:180px;">
+      </div>
+      <div id="tabela-extrato"></div>
+      <div class="note">Lido ao vivo da tabela <code>eqi_financas.extrato</code> — 814 lançamentos transcritos dos extratos de conta corrente EQI (jan–jul/2026). Clique nos cabeçalhos para ordenar.</div>
+    </div>
+  </div>
+
+  <!-- ===================== PAGINA DEDICADA DO ATIVO ===================== -->
+  <div class="tab-panel" id="tab-ativo">
+    <button class="ativo-voltar" onclick="closeAtivoPage()">&larr; Voltar</button>
+    <div class="ativo-header">
+      <h2 id="ativo-titulo">Ativo</h2>
+      <div id="ativo-sub" class="modal-sub"></div>
+    </div>
+    <section class="kpi-row" id="ativo-kpis" style="margin-top:14px;"></section>
+
+    <section class="chart-row">
+      <div class="chart-container tall">
+        <h3>Rendimentos por mês</h3>
+        <canvas id="chart-ativo-rendimentos"></canvas>
+      </div>
+      <div class="chart-container tall">
+        <h3>Compras vs. Vendas por mês (R$)</h3>
+        <canvas id="chart-ativo-transacoes"></canvas>
+      </div>
+    </section>
+
+    <div class="table-section">
+      <h3>Transações por mês (compras e vendas)</h3>
+      <div id="ativo-transacoes"></div>
+    </div>
+    <div class="table-section">
+      <h3>Rendimentos, amortizações e vendas — histórico completo</h3>
+      <div id="ativo-eventos"></div>
+    </div>
+  </div>
+
+  <footer class="dashboard-footer">
+    Site estático hospedado no GitHub Pages, lendo ao vivo do Supabase (projeto financas-jose, schema eqi_financas) via API REST pública (somente leitura). Não substitui o Informe de Rendimentos oficial para fins de declaração. Clique em qualquer ativo nas tabelas de Posição ou Rendimentos para ver a página detalhada.
+  </footer>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://parrnhobkfvkfolvxnqo.supabase.co';
+// Chave "anon" pública — protegida por Row Level Security (só leitura liberada).
+// Não há problema em ela ficar visível no código do site.
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBhcnJuaG9ia2Z2a2ZvbHZ4bnFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQyMzY0NDEsImV4cCI6MjA5OTgxMjQ0MX0.4MQWBi8MJDwQ4q6x1Ga6IdRSmgbUu0Aa-bFXxOROAPo';
+
+const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul'];
+const MESES_LABEL = {Jan:'Jan',Fev:'Fev',Mar:'Mar',Abr:'Abr',Mai:'Mai',Jun:'Jun',Jul:'Jul (parcial)'};
+const PALETTE = ['#2f6fed','#e08a3c','#2fa85a','#d64550','#8a6fd1','#3aa7a0','#c9a227','#4a5a7a'];
+
+const BRL_FMT = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
+function fmtBRL(v){ return BRL_FMT.format(Number(v)||0); }
+function fmtNum(v, dec){ dec = dec===undefined?0:dec; return new Intl.NumberFormat('pt-BR',{minimumFractionDigits:dec,maximumFractionDigits:dec}).format(Number(v)||0); }
+function fmtQtd(v){ const n = Number(v)||0; return Number.isInteger(n) ? fmtNum(n,0) : fmtNum(n,2); }
+function fmtDate(iso){ if(!iso) return '-'; const p = String(iso).split('T')[0].split('-'); return p.length===3 ? `${p[2]}/${p[1]}/${p[0]}` : iso; }
+function escapeAttr(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function sum(arr){ return arr.reduce((a,b)=>a+(Number(b)||0),0); }
+function groupSum(arr, keyFn, valFn){ const out={}; arr.forEach(r=>{ const k=keyFn(r); out[k]=(out[k]||0)+(Number(valFn(r))||0); }); return out; }
+function set(id, val){ const el = document.getElementById(id); if (el) el.textContent = val; }
+
+/* Busca uma tabela/view do schema eqi_financas via API REST do Supabase (PostgREST). */
+async function sb(table, query){
+  const url = `${SUPABASE_URL}/rest/v1/${table}?${query}`;
+  const resp = await fetch(url, {
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      'Accept-Profile': 'eqi_financas'
+    }
+  });
+  if (!resp.ok){
+    let detail = '';
+    try { detail = await resp.text(); } catch(e){}
+    throw new Error(`Erro ao buscar "${table}": HTTP ${resp.status} ${detail.slice(0,200)}`);
+  }
+  return resp.json();
+}
+
+const DATA = { posicaoAll:[], rendimentosAll:[], txMensalAll:[], rendaFixaAll:[], patrimonioAll:[], resumoAll:[], extratoAll:[], patHistAll:[], mercadoAll:[], contas:[], contaAtual:null,
+               posicao:[], rendimentos:[], txMensal:[], rendaFixa:[], patrimonio:[], resumo:[], extrato:[], patHist:[], mercado:[], catMap:{} };
+const chartInstances = {};
+const tabChartsRendered = {};
+let lastMainTab = 'geral';
+let ativoAtual = null;
+
+function makeChart(canvasId, config){
+  if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+  const ctx = document.getElementById(canvasId);
+  chartInstances[canvasId] = new Chart(ctx, config);
+  return chartInstances[canvasId];
+}
+
+function getCategoria(ativo){ return DATA.catMap[ativo] || 'RF direta'; }
+
+async function boot(){
+  try{
+    const [posicao, rendimentos, txMensal, rendaFixa, patrimonio, resumo, extrato, patHist, mercado] = await Promise.all([
+      sb('posicao_ativos', 'select=ticker,categoria,quantidade,custo_medio,custo_total,conta&order=custo_total.desc'),
+      sb('rendimentos_eventos', 'select=ativo,data,tipo,descricao,valor,mes,conta&order=data.asc'),
+      sb('transacoes_mensais', 'select=ativo,mes,comp_qtd,comp_valor,vend_qtd,vend_valor,day_trade,conta'),
+      sb('renda_fixa', 'select=categoria,ativo,quantidade,saldo,observacao,conta'),
+      sb('patrimonio_classes', 'select=classe,valor,detalhe,conta'),
+      sb('resumo_mensal', 'select=mes,rendimentos,daytrade_taxavel,daytrade_isento,swing_taxavel,swing_isento,bmf,ir_daytrade,ir_swing,amortizacao,conta&order=id.asc'),
+      sb('extrato', 'select=id,conta,data,descricao,tipo,valor,saldo,categoria&order=id.asc'),
+      sb('patrimonio_historico', 'select=conta,mes,ano,saldo_cc_inicial,saldo_cc_final,aportes,retiradas,rendimentos,resultado_operacoes,amortizacao&order=id.asc'),
+      sb('posicao_mercado', 'select=conta,ticker,categoria,quantidade,custo_medio,custo_total,preco_fechamento,data_preco,valor_mercado,lucro_nao_realizado,lucro_percentual'),
+    ]);
+    DATA.posicaoAll = posicao; DATA.rendimentosAll = rendimentos; DATA.txMensalAll = txMensal;
+    DATA.rendaFixaAll = rendaFixa; DATA.patrimonioAll = patrimonio; DATA.resumoAll = resumo;
+    DATA.extratoAll = extrato; DATA.patHistAll = patHist; DATA.mercadoAll = mercado;
+
+    const contas = Array.from(new Set(posicao.map(r=>r.conta).concat(resumo.map(r=>r.conta)).concat(patrimonio.map(r=>r.conta)).concat(extrato.map(r=>r.conta)).concat(mercado.map(r=>r.conta)))).filter(Boolean).sort();
+    DATA.contas = contas.length ? contas : ['008576348'];
+    DATA.contaAtual = DATA.contas[0];
+
+    renderContaSelector();
+    applyConta();
+
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+
+    document.querySelectorAll('.tab-btn').forEach(b=>{
+      b.addEventListener('click', ()=> showTab(b.dataset.tab));
+    });
+
+    renderGeralCharts();
+    tabChartsRendered.geral = true;
+  }catch(err){
+    document.getElementById('loading').innerHTML = '<div class="erro"><strong>Erro ao carregar dados do Supabase.</strong><br>' + escapeAttr(err.message||String(err)) + '</div>';
+  }
+}
+
+function renderContaSelector(){
+  const wrap = document.getElementById('conta-selector-wrap');
+  const sel = document.getElementById('conta-selector');
+  if (DATA.contas.length <= 1){ wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  sel.innerHTML = DATA.contas.map(c=>`<option value="${escapeAttr(c)}">Conta ${escapeAttr(c)}</option>`).join('');
+  sel.value = DATA.contaAtual;
+  sel.addEventListener('change', ()=>{
+    DATA.contaAtual = sel.value;
+    applyConta();
+    Object.keys(tabChartsRendered).forEach(k=>delete tabChartsRendered[k]);
+    showTab(lastMainTab);
+    renderGeralChartsIfNeeded();
+  });
+}
+function renderGeralChartsIfNeeded(){
+  if (lastMainTab==='geral' && !tabChartsRendered.geral){ renderGeralCharts(); tabChartsRendered.geral = true; }
+}
+
+function applyConta(){
+  const c = DATA.contaAtual;
+  DATA.posicao = DATA.posicaoAll.filter(r=>r.conta===c);
+  DATA.rendimentos = DATA.rendimentosAll.filter(r=>r.conta===c);
+  DATA.txMensal = DATA.txMensalAll.filter(r=>r.conta===c);
+  DATA.rendaFixa = DATA.rendaFixaAll.filter(r=>r.conta===c);
+  DATA.patrimonio = DATA.patrimonioAll.filter(r=>r.conta===c);
+  DATA.resumo = DATA.resumoAll.filter(r=>r.conta===c).sort((a,b)=>MESES.indexOf(a.mes)-MESES.indexOf(b.mes));
+  DATA.extrato = DATA.extratoAll.filter(r=>r.conta===c);
+  DATA.patHist = DATA.patHistAll.filter(r=>r.conta===c).sort((a,b)=>MESES.indexOf(a.mes)-MESES.indexOf(b.mes));
+  DATA.mercado = DATA.mercadoAll.filter(r=>r.conta===c);
+  DATA.catMap = {};
+  DATA.posicao.forEach(p=>{ DATA.catMap[p.ticker] = p.categoria; });
+
+  renderGeralTables();
+  renderPosicaoTables();
+  renderImpostosTables();
+  renderRendimentosTables();
+  renderPatrimonioCCTables();
+  renderExtratoFilters();
+  renderExtratoTable();
+}
+
+function showTab(tabId){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tabId));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-'+tabId).classList.add('active');
+  lastMainTab = tabId;
+  if (!tabChartsRendered[tabId]){
+    if (tabId==='geral') renderGeralCharts();
+    if (tabId==='posicao') renderPosicaoCharts();
+    if (tabId==='rentabilidade') renderRentabilidadeCharts();
+    if (tabId==='impostos') renderImpostosCharts();
+    if (tabId==='rendimentos') renderRendimentosCharts();
+    if (tabId==='patrimonio-cc') renderPatrimonioCCCharts();
+    tabChartsRendered[tabId] = true;
+  }
+}
+
+/* ---------- tabela genérica ordenável ---------- */
+const tableState = {};
+function renderTable(containerId, columns, rows, opts){
+  opts = opts || {};
+  const state = tableState[containerId] || { sortKey: opts.sortKey || columns[0].key, sortDir: opts.sortDir || 'desc' };
+  tableState[containerId] = state;
+  const sorted = rows.slice().sort((a,b)=>{
+    let va = a[state.sortKey], vb = b[state.sortKey];
+    if (typeof va === 'string' || typeof vb === 'string'){
+      va = va==null?'':String(va); vb = vb==null?'':String(vb);
+      return state.sortDir==='asc' ? va.localeCompare(vb,'pt-BR') : vb.localeCompare(va,'pt-BR');
+    }
+    va = Number(va)||0; vb = Number(vb)||0;
+    return state.sortDir==='asc' ? va-vb : vb-va;
+  });
+  let html = '<table class="data-table"><thead><tr>';
+  columns.forEach(c=>{ html += `<th data-key="${c.key}">${c.label}${state.sortKey===c.key ? (state.sortDir==='asc'?' ▲':' ▼') : ''}</th>`; });
+  html += '</tr></thead><tbody>';
+  if (sorted.length===0){
+    html += `<tr><td colspan="${columns.length}" style="color:var(--text-secondary);">Sem dados.</td></tr>`;
+  }
+  sorted.forEach(row=>{
+    const rk = opts.rowKey ? row[opts.rowKey] : null;
+    html += `<tr${opts.onRowClick ? ' class="clickable" data-rowkey="'+escapeAttr(rk)+'"' : ''}>`;
+    columns.forEach(c=>{ html += `<td>${c.format ? c.format(row[c.key], row) : (row[c.key]==null?'-':row[c.key])}</td>`; });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  const el = document.getElementById(containerId);
+  el.innerHTML = html;
+  el.querySelectorAll('thead th').forEach(th=>{
+    th.addEventListener('click', ()=>{
+      const k = th.dataset.key;
+      if (state.sortKey===k) state.sortDir = state.sortDir==='asc'?'desc':'asc';
+      else { state.sortKey = k; state.sortDir = 'desc'; }
+      renderTable(containerId, columns, rows, opts);
+    });
+  });
+  if (opts.onRowClick){
+    el.querySelectorAll('tbody tr[data-rowkey]').forEach(tr=>{
+      tr.addEventListener('click', ()=> opts.onRowClick(tr.dataset.rowkey));
+    });
+  }
+}
+
+/* ---------- ABA GERAL ---------- */
+function renderGeralTables(){
+  const patrimonioTotal = sum(DATA.patrimonio.map(p=>p.valor));
+  const rendimentosTotal = sum(DATA.resumo.map(r=>r.rendimentos));
+  const ganhoTrades = sum(DATA.resumo.map(r=> Number(r.daytrade_taxavel)+Number(r.daytrade_isento)+Number(r.swing_taxavel)+Number(r.swing_isento)+Number(r.bmf)));
+  const irTotal = sum(DATA.resumo.map(r=> Number(r.ir_daytrade)+Number(r.ir_swing)));
+  set('g-kpi-patrimonio', fmtBRL(patrimonioTotal));
+  set('g-kpi-patrimonio-sub', 'Conta ' + (DATA.contaAtual||''));
+  set('g-kpi-rendimentos', fmtBRL(rendimentosTotal));
+  set('g-kpi-trades', fmtBRL(ganhoTrades));
+  set('g-kpi-ir', fmtBRL(irTotal));
+
+  let html = '<table class="data-table"><thead><tr><th>Mês</th><th>Rendimentos</th><th>Day trade taxável</th><th>Day trade isento</th><th>Swing taxável</th><th>Swing isento</th><th>BM&F</th><th>IR day trade</th><th>IR swing</th><th>Amortização</th></tr></thead><tbody>';
+  DATA.resumo.forEach(r=>{
+    html += `<tr><td>${MESES_LABEL[r.mes]||r.mes}</td><td>${fmtBRL(r.rendimentos)}</td><td>${fmtBRL(r.daytrade_taxavel)}</td><td>${fmtBRL(r.daytrade_isento)}</td><td>${fmtBRL(r.swing_taxavel)}</td><td>${fmtBRL(r.swing_isento)}</td><td>${fmtBRL(r.bmf)}</td><td>${fmtBRL(r.ir_daytrade)}</td><td>${fmtBRL(r.ir_swing)}</td><td>${fmtBRL(r.amortizacao)}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('tabela-resumo').innerHTML = html;
+}
+
+function renderGeralCharts(){
+  makeChart('chart-patrimonio', { type:'pie', data:{ labels: DATA.patrimonio.map(p=>p.classe), datasets:[{ data: DATA.patrimonio.map(p=>p.valor), backgroundColor: PALETTE }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{size:11} } } } } });
+
+  makeChart('chart-geral-mensal', { type:'bar', data:{ labels: DATA.resumo.map(r=>MESES_LABEL[r.mes]||r.mes), datasets:[
+      { label:'Rendimentos', data: DATA.resumo.map(r=>r.rendimentos), backgroundColor:'#2fa85a' },
+      { label:'Ganho trades', data: DATA.resumo.map(r=> Number(r.daytrade_taxavel)+Number(r.daytrade_isento)+Number(r.swing_taxavel)+Number(r.swing_isento)+Number(r.bmf)), backgroundColor:'#2f6fed' }
+    ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } } } });
+}
+
+/* ---------- ABA POSICAO ---------- */
+function renderPosicaoTables(){
+  const total = sum(DATA.patrimonio.map(p=>p.valor));
+  const rvClasses = ['Fundos Listados (FII)','ETFs','Ações','Aluguel de ações'];
+  const rfClasses = ['Fundos Fechados','Renda Fixa (CDCA+CRA+DEB+LCA)','COE'];
+  const rv = sum(DATA.patrimonio.filter(p=>rvClasses.includes(p.classe)).map(p=>p.valor));
+  const rf = sum(DATA.patrimonio.filter(p=>rfClasses.includes(p.classe)).map(p=>p.valor));
+  const cc = sum(DATA.patrimonio.filter(p=>p.classe==='Conta Corrente').map(p=>p.valor));
+  set('p-kpi-total', fmtBRL(total));
+  set('p-kpi-rv', fmtBRL(rv));
+  set('p-kpi-rf', fmtBRL(rf));
+  set('p-kpi-cc', fmtBRL(cc));
+
+  const totalValorMercado = sum(DATA.mercado.map(m=>m.valor_mercado));
+  const totalCustoRV = sum(DATA.mercado.map(m=>m.custo_total));
+  const lucroRV = totalValorMercado - totalCustoRV;
+  let dataPrecoMaisRecente = null;
+  DATA.mercado.forEach(m=>{ if (m.data_preco && (!dataPrecoMaisRecente || m.data_preco > dataPrecoMaisRecente)) dataPrecoMaisRecente = m.data_preco; });
+
+  set('p-kpi-rv-mercado', fmtBRL(totalValorMercado));
+  set('p-kpi-rv-mercado-sub', dataPrecoMaisRecente ? `cotação de ${fmtDate(dataPrecoMaisRecente)}` : 'aguardando cotação');
+
+  const elLucroRV = document.getElementById('p-kpi-rv-lucro');
+  if (elLucroRV){
+    elLucroRV.textContent = fmtBRL(lucroRV);
+    elLucroRV.className = 'kpi-value ' + (lucroRV>0 ? 'positive' : (lucroRV<0 ? 'negative' : 'neutro'));
+  }
+  const pctLucroRV = totalCustoRV>0 ? (lucroRV/totalCustoRV*100) : null;
+  set('p-kpi-rv-lucro-sub', pctLucroRV!=null ? `${pctLucroRV>=0?'+':''}${fmtNum(pctLucroRV,2)}% sobre o custo` : '');
+
+  renderTable('tabela-patrimonio',
+    [ {key:'classe', label:'Classe'}, {key:'valor', label:'Valor', format:fmtBRL}, {key:'detalhe', label:'Detalhe'} ],
+    DATA.patrimonio, { sortKey:'valor', sortDir:'desc' });
+
+  renderTable('tabela-ativos',
+    [ {key:'ticker', label:'Ticker'}, {key:'categoria', label:'Categoria'}, {key:'quantidade', label:'Quantidade', format:fmtQtd},
+      {key:'custo_medio', label:'Custo médio', format:fmtBRL}, {key:'custo_total', label:'Valor investido', format:fmtBRL},
+      {key:'preco_fechamento', label:'Preço atual', format:v=> v!=null?fmtBRL(v):'-'},
+      {key:'data_preco', label:'Data cotação', format:v=> v!=null?fmtDate(v):'-'},
+      {key:'valor_mercado', label:'Valor de mercado', format:v=> v!=null?fmtBRL(v):'-'},
+      {key:'lucro_nao_realizado', label:'Lucro/Prejuízo', format:(v)=> v!=null ? `<span style="color:${v>=0?'var(--positive)':'var(--negative)'}">${v>=0?'+':''}${fmtBRL(v)}</span>` : '-'},
+      {key:'lucro_percentual', label:'%', format:v=> v!=null ? `<span style="color:${v>=0?'var(--positive)':'var(--negative)'}">${v>=0?'+':''}${fmtNum(v,2)}%</span>` : '-'} ],
+    DATA.mercado, { sortKey:'valor_mercado', sortDir:'desc', rowKey:'ticker', onRowClick: openAtivoPage });
+
+  renderTable('tabela-rendafixa',
+    [ {key:'categoria', label:'Categoria'}, {key:'ativo', label:'Ativo'}, {key:'quantidade', label:'Quantidade'},
+      {key:'saldo', label:'Saldo', format:fmtBRL}, {key:'observacao', label:'Observação'} ],
+    DATA.rendaFixa, { sortKey:'saldo', sortDir:'desc' });
+}
+
+function renderPosicaoCharts(){
+  makeChart('chart-posicao-classe', { type:'pie', data:{ labels: DATA.patrimonio.map(p=>p.classe), datasets:[{ data: DATA.patrimonio.map(p=>p.valor), backgroundColor: PALETTE }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{size:11} } } } } });
+
+  const rfByCat = groupSum(DATA.rendaFixa, r=>r.categoria, r=>r.saldo);
+  makeChart('chart-rendafixa', { type:'bar', data:{ labels: Object.keys(rfByCat), datasets:[{ label:'Saldo', data: Object.values(rfByCat), backgroundColor: PALETTE }] }, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } } } });
+}
+
+/* ---------- ABA RENTABILIDADE ---------- */
+function renderRentabilidadeCharts(){
+  makeChart('chart-trades', { type:'bar', data:{ labels: DATA.resumo.map(r=>MESES_LABEL[r.mes]||r.mes), datasets:[
+      { label:'Day trade taxável', data: DATA.resumo.map(r=>r.daytrade_taxavel), backgroundColor:'#d64550' },
+      { label:'Day trade isento', data: DATA.resumo.map(r=>r.daytrade_isento), backgroundColor:'#f2b6bb' },
+      { label:'Swing taxável', data: DATA.resumo.map(r=>r.swing_taxavel), backgroundColor:'#2f6fed' },
+      { label:'Swing isento', data: DATA.resumo.map(r=>r.swing_isento), backgroundColor:'#a9c4fb' }
+    ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{stacked:true}, y:{stacked:true, beginAtZero:true} } } });
+
+  makeChart('chart-ir', { type:'bar', data:{ labels: DATA.resumo.map(r=>MESES_LABEL[r.mes]||r.mes), datasets:[
+      { label:'IR day trade', data: DATA.resumo.map(r=>r.ir_daytrade), backgroundColor:'#d64550' },
+      { label:'IR swing', data: DATA.resumo.map(r=>r.ir_swing), backgroundColor:'#e08a3c' }
+    ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } } } });
+}
+
+/* ---------- ABA IMPOSTOS (DARF) ---------- */
+const MES_TO_INDEX = {Jan:0, Fev:1, Mar:2, Abr:3, Mai:4, Jun:5, Jul:6};
+function anoApuracao(){ return new Date().getFullYear(); }
+function lastBusinessDay(year, monthIndex0){
+  const d = new Date(year, monthIndex0+1, 0);
+  while (d.getDay()===0 || d.getDay()===6) d.setDate(d.getDate()-1);
+  return d;
+}
+function darfDueDate(mes){
+  const mi = MES_TO_INDEX[mes];
+  if (mi===undefined) return null;
+  return lastBusinessDay(anoApuracao(), mi+1);
+}
+function fmtDateBR(d){
+  if (!d) return '-';
+  return d.toLocaleDateString('pt-BR');
+}
+
+function renderImpostosTables(){
+  const rows = DATA.resumo.map(r=>{
+    const total = Number(r.ir_daytrade) + Number(r.ir_swing);
+    const due = darfDueDate(r.mes);
+    return { mes:r.mes, mesOrd: MES_TO_INDEX[r.mes], ir_daytrade:Number(r.ir_daytrade), ir_swing:Number(r.ir_swing), total, due, dispensado: total < 10 };
+  });
+
+  const totalGeral = sum(rows.map(r=>r.total));
+  const totalDaytrade = sum(rows.map(r=>r.ir_daytrade));
+  const totalSwing = sum(rows.map(r=>r.ir_swing));
+  set('i-kpi-total', fmtBRL(totalGeral));
+  set('i-kpi-daytrade', fmtBRL(totalDaytrade));
+  set('i-kpi-swing', fmtBRL(totalSwing));
+
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  let proximo = null;
+  rows.forEach(r=>{ if (r.due && r.due >= hoje && !r.dispensado){ if (!proximo || r.due < proximo.due) proximo = r; } });
+  if (proximo){
+    set('i-kpi-proximo-valor', fmtBRL(proximo.total));
+    set('i-kpi-proximo-sub', `Referente a ${MESES_LABEL[proximo.mes]||proximo.mes} · vence em ${fmtDateBR(proximo.due)}`);
+  } else {
+    set('i-kpi-proximo-valor', '-');
+    set('i-kpi-proximo-sub', 'Nenhum DARF pendente nos meses carregados');
+  }
+
+  let html = '<table class="data-table"><thead><tr><th>Mês (apuração)</th><th>IR Day Trade</th><th>IR Swing</th><th>Total DARF</th><th>Código</th><th>Vencimento</th></tr></thead><tbody>';
+  rows.forEach(r=>{
+    html += `<tr><td>${MESES_LABEL[r.mes]||r.mes}</td><td>${fmtBRL(r.ir_daytrade)}</td><td>${fmtBRL(r.ir_swing)}</td><td style="font-weight:700">${fmtBRL(r.total)}</td><td>${r.dispensado ? '<span class="tag neutro">dispensado (&lt;R$10)</span>' : '6015'}</td><td>${r.dispensado ? '-' : fmtDateBR(r.due)}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('tabela-impostos').innerHTML = html;
+}
+
+function renderImpostosCharts(){
+  makeChart('chart-impostos', { type:'bar', data:{ labels: DATA.resumo.map(r=>MESES_LABEL[r.mes]||r.mes), datasets:[
+      { label:'IR day trade', data: DATA.resumo.map(r=>r.ir_daytrade), backgroundColor:'#d64550' },
+      { label:'IR swing', data: DATA.resumo.map(r=>r.ir_swing), backgroundColor:'#e08a3c' }
+    ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ x:{stacked:true}, y:{stacked:true, beginAtZero:true} } } });
+}
+
+/* ---------- ABA RENDIMENTOS ---------- */
+function renderRendimentosTables(){
+  const rendEventos = DATA.rendimentos.filter(e=>e.tipo==='Rendimento');
+  const totalRend = sum(rendEventos.map(e=>e.valor));
+  const totalAmort = sum(DATA.rendimentos.filter(e=>e.tipo==='Amortização').map(e=>e.valor));
+  set('r-kpi-total', fmtBRL(totalRend));
+  set('r-kpi-amort', fmtBRL(totalAmort));
+
+  let melhor = null;
+  DATA.resumo.forEach(r=>{ if (!melhor || Number(r.rendimentos) > Number(melhor.rendimentos)) melhor = r; });
+  set('r-kpi-melhor-mes', melhor ? `${MESES_LABEL[melhor.mes]||melhor.mes} — ${fmtBRL(melhor.rendimentos)}` : '-');
+
+  let html = '<table class="data-table"><thead><tr><th>Mês</th><th>Rendimentos</th><th>Amortização</th></tr></thead><tbody>';
+  DATA.resumo.forEach(r=>{
+    html += `<tr><td>${MESES_LABEL[r.mes]||r.mes}</td><td>${fmtBRL(r.rendimentos)}</td><td>${fmtBRL(r.amortizacao)}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('tabela-rendimentos').innerHTML = html;
+
+  const byAtivo = {};
+  rendEventos.forEach(e=>{
+    if (!byAtivo[e.ativo]) byAtivo[e.ativo] = { ativo:e.ativo, categoria:getCategoria(e.ativo), valor:0 };
+    byAtivo[e.ativo].valor += Number(e.valor)||0;
+  });
+  renderTable('tabela-rend-ativo',
+    [ {key:'ativo', label:'Ativo'}, {key:'categoria', label:'Categoria'}, {key:'valor', label:'Valor recebido', format:fmtBRL} ],
+    Object.values(byAtivo), { sortKey:'valor', sortDir:'desc', rowKey:'ativo', onRowClick: openAtivoPage });
+}
+
+function renderRendimentosCharts(){
+  makeChart('chart-rendimentos', { type:'bar', data:{ labels: DATA.resumo.map(r=>MESES_LABEL[r.mes]||r.mes), datasets:[{ label:'Rendimentos', data: DATA.resumo.map(r=>r.rendimentos), backgroundColor:'#2fa85a' }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } } } });
+
+  const byCat = groupSum(DATA.rendimentos.filter(e=>e.tipo==='Rendimento'), e=>getCategoria(e.ativo), e=>e.valor);
+  makeChart('chart-rend-categoria', { type:'pie', data:{ labels: Object.keys(byCat), datasets:[{ data: Object.values(byCat), backgroundColor: PALETTE }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{size:11} } } } } });
+}
+
+/* ---------- ABA PATRIMONIO / FLUXO DE CAIXA ---------- */
+function renderPatrimonioCCTables(){
+  const hist = DATA.patHist;
+  const saldoAtual = hist.length ? Number(hist[hist.length-1].saldo_cc_final) : null;
+  const totalAportes = sum(hist.map(h=>h.aportes));
+  const totalRetiradas = sum(hist.map(h=>h.retiradas));
+  const saldoInicial = hist.length ? Number(hist[0].saldo_cc_inicial) : 0;
+  const crescimentoLiquido = (saldoAtual!=null) ? (saldoAtual - saldoInicial - totalAportes + totalRetiradas) : null;
+
+  set('pc-kpi-saldo-atual', saldoAtual!=null ? fmtBRL(saldoAtual) : '-');
+  set('pc-kpi-saldo-atual-sub', hist.length ? `ao final de ${MESES_LABEL[hist[hist.length-1].mes]||hist[hist.length-1].mes}` : '');
+  set('pc-kpi-aportes', fmtBRL(totalAportes));
+  set('pc-kpi-retiradas', fmtBRL(totalRetiradas));
+  const elCresc = document.getElementById('pc-kpi-crescimento');
+  if (elCresc){
+    elCresc.textContent = crescimentoLiquido!=null ? fmtBRL(crescimentoLiquido) : '-';
+    elCresc.className = 'kpi-value ' + (crescimentoLiquido>0 ? 'positive' : (crescimentoLiquido<0 ? 'negative' : 'neutro'));
+  }
+
+  let html = '<table class="data-table"><thead><tr><th>Mês</th><th>Saldo CC inicial</th><th>Saldo CC final</th><th>Aportes</th><th>Retiradas</th><th>Rendimentos</th><th>Resultado operações</th><th>Amortização</th></tr></thead><tbody>';
+  hist.forEach(h=>{
+    html += `<tr><td>${MESES_LABEL[h.mes]||h.mes}</td><td>${fmtBRL(h.saldo_cc_inicial)}</td><td>${fmtBRL(h.saldo_cc_final)}</td><td style="color:var(--positive)">${h.aportes>0?fmtBRL(h.aportes):'-'}</td><td style="color:var(--negative)">${h.retiradas>0?fmtBRL(h.retiradas):'-'}</td><td>${fmtBRL(h.rendimentos)}</td><td>${fmtBRL(h.resultado_operacoes)}</td><td>${fmtBRL(h.amortizacao)}</td></tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('tabela-patrimonio-historico').innerHTML = html;
+}
+
+function renderPatrimonioCCCharts(){
+  const hist = DATA.patHist;
+  makeChart('chart-patrimonio-saldo', { type:'line', data:{ labels: hist.map(h=>MESES_LABEL[h.mes]||h.mes), datasets:[
+      { label:'Saldo CC final', data: hist.map(h=>h.saldo_cc_final), borderColor:'#2f6fed', backgroundColor:'rgba(47,111,237,.12)', fill:true, tension:.25 }
+    ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:false } } } });
+
+  makeChart('chart-patrimonio-fluxo', { type:'bar', data:{ labels: hist.map(h=>MESES_LABEL[h.mes]||h.mes), datasets:[
+      { label:'Aportes', data: hist.map(h=>h.aportes), backgroundColor:'#2fa85a' },
+      { label:'Retiradas', data: hist.map(h=>-Math.abs(Number(h.retiradas)||0)), backgroundColor:'#d64550' }
+    ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } } } });
+}
+
+/* ---------- ABA EXTRATO ---------- */
+function renderExtratoFilters(){
+  const selMes = document.getElementById('extrato-filtro-mes');
+  const selCat = document.getElementById('extrato-filtro-cat');
+  const meses = Array.from(new Set(DATA.extrato.map(e=>String(e.data).slice(0,7)))).sort();
+  selMes.innerHTML = '<option value="">Todos</option>' + meses.map(m=>`<option value="${m}">${m}</option>`).join('');
+  const cats = Array.from(new Set(DATA.extrato.map(e=>e.categoria))).filter(Boolean).sort();
+  selCat.innerHTML = '<option value="">Todas</option>' + cats.map(c=>`<option value="${escapeAttr(c)}">${escapeAttr(c)}</option>`).join('');
+  selMes.onchange = renderExtratoTable;
+  selCat.onchange = renderExtratoTable;
+  document.getElementById('extrato-filtro-texto').oninput = renderExtratoTable;
+}
+
+function renderExtratoTable(){
+  const mes = document.getElementById('extrato-filtro-mes').value;
+  const cat = document.getElementById('extrato-filtro-cat').value;
+  const texto = document.getElementById('extrato-filtro-texto').value.trim().toLowerCase();
+
+  let rows = DATA.extrato;
+  if (mes) rows = rows.filter(e=>String(e.data).slice(0,7)===mes);
+  if (cat) rows = rows.filter(e=>e.categoria===cat);
+  if (texto) rows = rows.filter(e=>String(e.descricao).toLowerCase().includes(texto));
+
+  set('ex-kpi-creditos', fmtBRL(sum(rows.filter(r=>r.tipo==='C').map(r=>r.valor))));
+  set('ex-kpi-debitos', fmtBRL(sum(rows.filter(r=>r.tipo==='D').map(r=>r.valor))));
+  set('ex-kpi-qtd', String(rows.length));
+
+  renderTable('tabela-extrato',
+    [ {key:'data', label:'Data', format:fmtDate},
+      {key:'descricao', label:'Descrição'},
+      {key:'categoria', label:'Categoria'},
+      {key:'tipo', label:'D/C'},
+      {key:'valor', label:'Valor', format:(v,row)=> `<span style="color:${row.tipo==='C'?'var(--positive)':'var(--negative)'}">${row.tipo==='C'?'+':'-'} ${fmtBRL(v)}</span>`},
+      {key:'saldo', label:'Saldo', format:fmtBRL} ],
+    rows, { sortKey:'data', sortDir:'desc' });
+}
+
+/* ---------- PAGINA DO ATIVO ---------- */
+function openAtivoPage(ativo){
+  ativoAtual = ativo;
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('tab-ativo').classList.add('active');
+
+  const posInfo = DATA.posicao.find(p=>p.ticker===ativo);
+  const mercadoInfo = DATA.mercado.find(m=>m.ticker===ativo);
+  const rfInfo = DATA.rendaFixa.find(r=>r.ativo===ativo || r.ativo.includes(ativo) || ativo.includes(r.ativo));
+  const events = DATA.rendimentos.filter(e=>e.ativo===ativo).sort((a,b)=> a.data < b.data ? -1 : 1);
+  const txs = DATA.txMensal.filter(t=>t.ativo===ativo).sort((a,b)=>MESES.indexOf(a.mes)-MESES.indexOf(b.mes));
+
+  document.getElementById('ativo-titulo').textContent = ativo;
+  document.getElementById('ativo-sub').textContent = posInfo ? posInfo.categoria : (rfInfo ? rfInfo.categoria : getCategoria(ativo));
+
+  const quantidade = posInfo ? posInfo.quantidade : (rfInfo ? rfInfo.quantidade : null);
+  const custoTotal = posInfo ? Number(posInfo.custo_total) : (rfInfo ? Number(rfInfo.saldo) : null);
+  const custoMedio = posInfo ? Number(posInfo.custo_medio) : null;
+  const rendimentosRecebidos = sum(events.filter(e=>e.tipo==='Rendimento').map(e=>e.valor));
+  const amortizacoes = sum(events.filter(e=>e.tipo==='Amortização').map(e=>e.valor));
+  const vendaCapital = sum(events.filter(e=>e.tipo==='Venda (capital)').map(e=>e.valor));
+  const totalComprado = sum(txs.map(t=>t.comp_valor));
+  const totalVendido = sum(txs.map(t=>t.vend_valor));
+  const yieldOnCost = (custoTotal && custoTotal>0) ? (rendimentosRecebidos/custoTotal*100) : null;
+
+  let kpis = '';
+  kpis += `<div class="kpi-card"><div class="kpi-label">Posição atual</div><div class="kpi-value">${quantidade!=null?fmtQtd(quantidade):'-'}</div>${custoMedio!=null?`<div class="kpi-sub">custo médio ${fmtBRL(custoMedio)}</div>`:''}</div>`;
+  kpis += `<div class="kpi-card"><div class="kpi-label">Valor investido</div><div class="kpi-value">${custoTotal!=null?fmtBRL(custoTotal):'-'}</div><div class="kpi-sub">custo de aquisição</div></div>`;
+  if (mercadoInfo && mercadoInfo.valor_mercado!=null){
+    const lucro = Number(mercadoInfo.lucro_nao_realizado);
+    kpis += `<div class="kpi-card"><div class="kpi-label">Valor de mercado</div><div class="kpi-value">${fmtBRL(mercadoInfo.valor_mercado)}</div><div class="kpi-sub">cotação de ${fmtDate(mercadoInfo.data_preco)}</div></div>`;
+    kpis += `<div class="kpi-card"><div class="kpi-label">Lucro/Prejuízo não realizado</div><div class="kpi-value ${lucro>0?'positive':(lucro<0?'negative':'neutro')}">${fmtBRL(lucro)}</div><div class="kpi-sub">${mercadoInfo.lucro_percentual!=null?fmtNum(Number(mercadoInfo.lucro_percentual),2)+'%':''}</div></div>`;
+  }
+  kpis += `<div class="kpi-card"><div class="kpi-label">Rendimentos recebidos</div><div class="kpi-value positive">${fmtBRL(rendimentosRecebidos)}</div></div>`;
+  kpis += `<div class="kpi-card"><div class="kpi-label">Yield on cost</div><div class="kpi-value ${yieldOnCost!=null?'positive':'neutro'}">${yieldOnCost!=null?fmtNum(yieldOnCost,2)+'%':'-'}</div><div class="kpi-sub">rendimentos ÷ custo total</div></div>`;
+  kpis += `<div class="kpi-card"><div class="kpi-label">Total comprado / vendido</div><div class="kpi-value neutro" style="font-size:18px;">${fmtBRL(totalComprado)} / ${fmtBRL(totalVendido)}</div></div>`;
+  if (amortizacoes>0) kpis += `<div class="kpi-card"><div class="kpi-label">Amortização recebida</div><div class="kpi-value neutro">${fmtBRL(amortizacoes)}</div><div class="kpi-sub">devolução de capital</div></div>`;
+  if (vendaCapital>0) kpis += `<div class="kpi-card"><div class="kpi-label">Venda (devolução de principal)</div><div class="kpi-value neutro">${fmtBRL(vendaCapital)}</div></div>`;
+  document.getElementById('ativo-kpis').innerHTML = kpis;
+
+  const rendPorMes = {};
+  events.filter(e=>e.tipo==='Rendimento').forEach(e=>{ rendPorMes[e.mes] = (rendPorMes[e.mes]||0) + Number(e.valor); });
+  const mesesComDados = MESES.filter(m => rendPorMes[m] || txs.some(t=>t.mes===m));
+
+  makeChart('chart-ativo-rendimentos', { type:'bar', data:{ labels: mesesComDados.map(m=>MESES_LABEL[m]||m), datasets:[{ label:'Rendimentos', data: mesesComDados.map(m=>rendPorMes[m]||0), backgroundColor:'#2fa85a' }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } }, scales:{ y:{ beginAtZero:true } } } });
+
+  makeChart('chart-ativo-transacoes', { type:'bar', data:{ labels: mesesComDados.map(m=>MESES_LABEL[m]||m), datasets:[
+      { label:'Compras', data: mesesComDados.map(m=>{ const t = txs.find(x=>x.mes===m); return t?Number(t.comp_valor):0; }), backgroundColor:'#2f6fed' },
+      { label:'Vendas', data: mesesComDados.map(m=>{ const t = txs.find(x=>x.mes===m); return t?Number(t.vend_valor):0; }), backgroundColor:'#e08a3c' }
+    ] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } } } });
+
+  renderTable('ativo-transacoes',
+    [ {key:'mes', label:'Mês', format:m=>MESES_LABEL[m]||m}, {key:'comp_qtd', label:'Qtd. comprada', format:fmtQtd}, {key:'comp_valor', label:'Total comprado', format:fmtBRL},
+      {key:'vend_qtd', label:'Qtd. vendida', format:fmtQtd}, {key:'vend_valor', label:'Total vendido', format:fmtBRL} ],
+    txs, { sortKey:'mes', sortDir:'asc' });
+
+  renderTable('ativo-eventos',
+    [ {key:'data', label:'Data', format:fmtDate}, {key:'tipo', label:'Tipo'}, {key:'descricao', label:'Descrição'}, {key:'valor', label:'Valor', format:fmtBRL} ],
+    events, { sortKey:'data', sortDir:'desc' });
+}
+
+function closeAtivoPage(){
+  showTab(lastMainTab && lastMainTab!=='ativo' ? lastMainTab : 'geral');
+}
+
+boot();
+</script>
+</body>
+</html>
