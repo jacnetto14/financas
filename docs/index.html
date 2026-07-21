@@ -153,22 +153,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
         <div class="kpi-value" id="p-kpi-total"></div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Renda variável</div>
+        <div class="kpi-label">Renda variável (a mercado)</div>
         <div class="kpi-value" id="p-kpi-rv"></div>
-        <div class="kpi-sub">ações + FII + ETFs + aluguel</div>
+        <div class="kpi-sub" id="p-kpi-rv-sub"></div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Renda fixa + fundos fechados</div>
+        <div class="kpi-label">Renda fixa (snapshot)</div>
         <div class="kpi-value" id="p-kpi-rf"></div>
+        <div class="kpi-sub">ainda sem rendimento diário calculado</div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-label">Conta corrente</div>
+        <div class="kpi-label">Conta corrente (atual)</div>
         <div class="kpi-value" id="p-kpi-cc"></div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-label">Valor de mercado (RV)</div>
-        <div class="kpi-value" id="p-kpi-rv-mercado"></div>
-        <div class="kpi-sub" id="p-kpi-rv-mercado-sub"></div>
       </div>
       <div class="kpi-card">
         <div class="kpi-label">Lucro/Prejuízo não realizado (RV)</div>
@@ -191,6 +187,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
     <div class="table-section">
       <h3>Patrimônio detalhado por classe</h3>
       <div id="tabela-patrimonio"></div>
+      <div class="note"><strong>Atenção:</strong> esta tabela é uma foto manual de 15/07 (mistura custo de aquisição e um snapshot de renda fixa daquele dia) — mantida só como detalhe histórico por classe. Os totais no topo desta aba e da aba Geral <strong>não vêm mais daqui</strong>: usam o valor de mercado real da RV, o snapshot mais recente de RF e o saldo atual da conta corrente.</div>
     </div>
 
     <div class="table-section">
@@ -640,14 +637,28 @@ function renderTable(containerId, columns, rows, opts){
   }
 }
 
+/* ---------- Patrimônio total (RV a mercado + RF snapshot + saldo CC atual) ---------- */
+function saldoCCAtual(){
+  if (!DATA.extrato.length) return 0;
+  let last = DATA.extrato[0];
+  DATA.extrato.forEach(e=>{ if (Number(e.id) > Number(last.id)) last = e; });
+  return Number(last.saldo)||0;
+}
+function patrimonioRealComponentes(){
+  const rvMercado = sum(DATA.mercado.map(m=>m.valor_mercado));
+  const rfSnapshot = sum(DATA.rendaFixa.map(r=>r.saldo));
+  const cc = saldoCCAtual();
+  return { rvMercado, rfSnapshot, cc, total: rvMercado + rfSnapshot + cc };
+}
+
 /* ---------- ABA GERAL ---------- */
 function renderGeralTables(){
-  const patrimonioTotal = sum(DATA.patrimonio.map(p=>p.valor));
+  const pr = patrimonioRealComponentes();
   const rendimentosTotal = sum(DATA.resumo.map(r=>r.rendimentos));
   const ganhoTrades = sum(DATA.resumo.map(r=> Number(r.daytrade_taxavel)+Number(r.daytrade_isento)+Number(r.swing_taxavel)+Number(r.swing_isento)+Number(r.bmf)));
   const irTotal = sum(DATA.resumo.map(r=> Number(r.ir_daytrade)+Number(r.ir_swing)));
-  set('g-kpi-patrimonio', fmtBRL(patrimonioTotal));
-  set('g-kpi-patrimonio-sub', 'Conta ' + (DATA.contaAtual||''));
+  set('g-kpi-patrimonio', fmtBRL(pr.total));
+  set('g-kpi-patrimonio-sub', `RV a mercado ${fmtBRL(pr.rvMercado)} + RF (snapshot) ${fmtBRL(pr.rfSnapshot)} + conta corrente ${fmtBRL(pr.cc)}`);
   set('g-kpi-rendimentos', fmtBRL(rendimentosTotal));
   set('g-kpi-trades', fmtBRL(ganhoTrades));
   set('g-kpi-ir', fmtBRL(irTotal));
@@ -661,7 +672,8 @@ function renderGeralTables(){
 }
 
 function renderGeralCharts(){
-  makeChart('chart-patrimonio', { type:'pie', data:{ labels: DATA.patrimonio.map(p=>p.classe), datasets:[{ data: DATA.patrimonio.map(p=>p.valor), backgroundColor: PALETTE }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{size:11} } } } } });
+  const pr = patrimonioRealComponentes();
+  makeChart('chart-patrimonio', { type:'pie', data:{ labels: ['Renda variável (mercado)','Renda fixa (snapshot)','Conta corrente'], datasets:[{ data: [pr.rvMercado, pr.rfSnapshot, pr.cc], backgroundColor: PALETTE }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{size:11} } } } } });
 
   makeChart('chart-geral-mensal', { type:'bar', data:{ labels: DATA.resumo.map(r=>MESES_LABEL[r.mes]||r.mes), datasets:[
       { label:'Rendimentos', data: DATA.resumo.map(r=>r.rendimentos), backgroundColor:'#2fa85a' },
@@ -671,25 +683,19 @@ function renderGeralCharts(){
 
 /* ---------- ABA POSICAO ---------- */
 function renderPosicaoTables(){
-  const total = sum(DATA.patrimonio.map(p=>p.valor));
-  const rvClasses = ['Fundos Listados (FII)','ETFs','Ações','Aluguel de ações'];
-  const rfClasses = ['Fundos Fechados','Renda Fixa (CDCA+CRA+DEB+LCA)','COE'];
-  const rv = sum(DATA.patrimonio.filter(p=>rvClasses.includes(p.classe)).map(p=>p.valor));
-  const rf = sum(DATA.patrimonio.filter(p=>rfClasses.includes(p.classe)).map(p=>p.valor));
-  const cc = sum(DATA.patrimonio.filter(p=>p.classe==='Conta Corrente').map(p=>p.valor));
-  set('p-kpi-total', fmtBRL(total));
-  set('p-kpi-rv', fmtBRL(rv));
-  set('p-kpi-rf', fmtBRL(rf));
-  set('p-kpi-cc', fmtBRL(cc));
+  const pr = patrimonioRealComponentes();
+  set('p-kpi-total', fmtBRL(pr.total));
+  set('p-kpi-rv', fmtBRL(pr.rvMercado));
+  set('p-kpi-rf', fmtBRL(pr.rfSnapshot));
+  set('p-kpi-cc', fmtBRL(pr.cc));
 
-  const totalValorMercado = sum(DATA.mercado.map(m=>m.valor_mercado));
+  const totalValorMercado = pr.rvMercado;
   const totalCustoRV = sum(DATA.mercado.map(m=>m.custo_total));
   const lucroRV = totalValorMercado - totalCustoRV;
   let dataPrecoMaisRecente = null;
   DATA.mercado.forEach(m=>{ if (m.data_preco && (!dataPrecoMaisRecente || m.data_preco > dataPrecoMaisRecente)) dataPrecoMaisRecente = m.data_preco; });
 
-  set('p-kpi-rv-mercado', fmtBRL(totalValorMercado));
-  set('p-kpi-rv-mercado-sub', dataPrecoMaisRecente ? `cotação de ${fmtDate(dataPrecoMaisRecente)}` : 'aguardando cotação');
+  set('p-kpi-rv-sub', dataPrecoMaisRecente ? `cotação de ${fmtDate(dataPrecoMaisRecente)}` : 'aguardando cotação');
 
   const elLucroRV = document.getElementById('p-kpi-rv-lucro');
   if (elLucroRV){
@@ -720,7 +726,8 @@ function renderPosicaoTables(){
 }
 
 function renderPosicaoCharts(){
-  makeChart('chart-posicao-classe', { type:'pie', data:{ labels: DATA.patrimonio.map(p=>p.classe), datasets:[{ data: DATA.patrimonio.map(p=>p.valor), backgroundColor: PALETTE }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{size:11} } } } } });
+  const pr = patrimonioRealComponentes();
+  makeChart('chart-posicao-classe', { type:'pie', data:{ labels: ['Renda variável (mercado)','Renda fixa (snapshot)','Conta corrente'], datasets:[{ data: [pr.rvMercado, pr.rfSnapshot, pr.cc], backgroundColor: PALETTE }] }, options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{ position:'right', labels:{ boxWidth:12, font:{size:11} } } } } });
 
   const rfByCat = groupSum(DATA.rendaFixa, r=>r.categoria, r=>r.saldo);
   makeChart('chart-rendafixa', { type:'bar', data:{ labels: Object.keys(rfByCat), datasets:[{ label:'Saldo', data: Object.values(rfByCat), backgroundColor: PALETTE }] }, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{ legend:{ display:false } } } });
