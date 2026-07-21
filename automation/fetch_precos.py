@@ -28,9 +28,9 @@ OUTPUT_FILE = DATA_DIR / "precos_historico.csv"
 BRAPI_TOKEN = os.environ.get("BRAPI_TOKEN", "").strip()
 BRAPI_URL = "https://brapi.dev/api/v2/stocks/quote"
 
-# Quantos tickers pedir por requisição. O plano gratuito é conservador;
-# 5 por chamada mantém a margem de erro baixa mesmo em dias de instabilidade.
-BATCH_SIZE = 5
+# Quantos tickers pedir por requisição. O plano gratuito não permite lote
+# (retorna 400 se symbols tiver mais de 1 ticker), então 1 por chamada.
+BATCH_SIZE = 1
 
 
 def carregar_tickers() -> list[str]:
@@ -54,7 +54,12 @@ def buscar_lote(tickers: list[str]) -> dict:
     resultado = {t: None for t in tickers}
     try:
         resp = requests.get(BRAPI_URL, params=params, headers=headers, timeout=20)
-        resp.raise_for_status()
+        if not resp.ok:
+            print(
+                f"[AVISO] Falha ao buscar {tickers}: HTTP {resp.status_code} - {resp.text[:300]}",
+                file=sys.stderr,
+            )
+            return resultado
         payload = resp.json()
         for item in payload.get("results", []):
             symbol = item.get("symbol") or item.get("requestedSymbol")
@@ -62,7 +67,7 @@ def buscar_lote(tickers: list[str]) -> dict:
             if symbol:
                 resultado[symbol] = preco
     except Exception as exc:  # noqa: BLE001
-        print(f"[AVISO] Falha ao buscar lote {tickers}: {exc}", file=sys.stderr)
+        print(f"[AVISO] Falha ao buscar {tickers}: {exc}", file=sys.stderr)
     return resultado
 
 
