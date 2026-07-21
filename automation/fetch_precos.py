@@ -28,6 +28,10 @@ OUTPUT_FILE = DATA_DIR / "precos_historico.csv"
 BRAPI_TOKEN = os.environ.get("BRAPI_TOKEN", "").strip()
 BRAPI_URL = "https://brapi.dev/api/v2/stocks/quote"
 
+# Projeto Supabase (financas-jose). A URL não é sensível; a chave sim.
+SUPABASE_URL = "https://parrnhobkfvkfolvxnqo.supabase.co"
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "").strip()
+
 # Quantos tickers pedir por requisição. O plano gratuito não permite lote
 # (retorna 400 se symbols tiver mais de 1 ticker), então 1 por chamada.
 BATCH_SIZE = 1
@@ -71,6 +75,54 @@ def buscar_lote(tickers: list[str]) -> dict:
     return resultado
 
 
+def sincronizar_supabase(linhas: list) -> None:
+    """Envia as cotações do dia para eqi_financas.precos_diarios no Supabase
+    (upsert por ticker+data). Não interrompe o script se falhar — o CSV no
+    repositório continua sendo a fonte de verdade mesmo se isso der erro."""
+    if not SUPABASE_SERVICE_KEY:
+        print(
+            "[AVISO] SUPABASE_SERVICE_KEY não configurada — pulando sincronização "
+            "com o Supabase (o CSV local ainda foi gravado normalmente).",
+            file=sys.stderr,
+        )
+        return
+    if not linhas:
+        return
+
+    payload = [
+        {
+            "ticker": ticker,
+            "data": data,
+            "preco_fechamento": float(preco),
+            "capturado_em": capturado_em,
+        }
+        for data, ticker, preco, capturado_em in linhas
+    ]
+
+    try:
+        resp = requests.post(
+            f"{SUPABASE_URL}/rest/v1/precos_diarios",
+            json=payload,
+            headers={
+                "apikey": SUPABASE_SERVICE_KEY,
+                "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
+                "Content-Type": "application/json",
+                "Content-Profile": "eqi_financas",
+                "Prefer": "resolution=merge-duplicates,return=minimal",
+            },
+            timeout=30,
+        )
+        if not resp.ok:
+            print(
+                f"[AVISO] Falha ao sincronizar com Supabase: HTTP {resp.status_code} - {resp.text[:300]}",
+                file=sys.stderr,
+            )
+        else:
+            print(f"OK: {len(payload)} cotações sincronizadas com o Supabase.")
+    except Exception as exc:  # noqa: BLE001
+        print(f"[AVISO] Falha ao sincronizar com Supabase: {exc}", file=sys.stderr)
+
+
 def main():
     if not BRAPI_TOKEN:
         print(
@@ -112,6 +164,8 @@ def main():
     print(f"OK: {len(linhas)} cotações gravadas para {hoje}.")
     if falhas:
         print(f"[AVISO] {len(falhas)} tickers sem cotação hoje: {', '.join(falhas)}")
+
+    sincronizar_supabase(linhas)
 
 
 if __name__ == "__main__":

@@ -28,6 +28,7 @@ jobs:
       - name: Buscar cotações do dia
         env:
           BRAPI_TOKEN: ${{ secrets.BRAPI_TOKEN }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: python automation/fetch_precos.py
 
       - name: Commitar CSV atualizado
