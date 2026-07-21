@@ -1,0 +1,51 @@
+# Lista de tickers de renda variável (ações, ETFs, FIIs/FIAGROs) da carteira.
+# Uma linha por ticker. Linhas iniciadas com # são ignoradas.
+# Edite este arquivo quando comprar/vender um ativo novo.
+
+# Ações
+ALOS3
+
+# ETFs
+COIN11
+NASD11
+SPYI11
+
+# ETFs de Renda Fixa (Tesouro Selic etc.)
+LFTB11
+LFTS11
+
+# FIIs / FIAGROs
+BDIF11
+BDIV11
+BODB11
+BRZP11
+CPTI11
+ENDD11
+FATN11
+FATN12
+GARE11
+HGCR11
+IFRA11
+IFRI11
+JURO11
+KNIP11
+MANA11
+OGIN11
+PFIN11
+PPEI11
+RBIR11
+SNEL11
+TEPP11
+TEPP12
+TRXF11
+VIGT11
+XPID11
+XPIE11
+XPML11
+
+# Outros (residual)
+AMZO34
+AUAU3
+LWSA3
+MGLU3
+TASA4

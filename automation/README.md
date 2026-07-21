@@ -1,0 +1,38 @@
+# Automação de cotações diárias
+
+Busca o fechamento diário de todos os tickers em `tickers.txt` via brapi.dev
+e acrescenta no arquivo `data/precos_historico.csv`. Roda sozinho todo dia
+útil às 18h30 (Brasília) via GitHub Actions — não precisa de nada rodando
+no seu computador.
+
+## Configuração (uma vez só)
+
+1. Suba esta pasta para o repositório `jacnetto14/financas` no GitHub.
+2. No repositório, vá em **Settings > Secrets and variables > Actions**.
+3. Clique em **New repository secret**.
+   - Nome: `BRAPI_TOKEN`
+   - Valor: seu token do brapi.dev (o mesmo que você me passou — NUNCA
+     coloque o token direto num arquivo do repositório, mesmo que privado).
+4. Vá em **Settings > Actions > General** e confirme que "Allow all actions"
+   está habilitado.
+5. Vá na aba **Actions** do repositório e rode o workflow "Cotações diárias"
+   manualmente uma vez (botão "Run workflow") para testar.
+
+Depois disso ele roda sozinho todo dia de mercado, sem precisar tocar em nada.
+
+## Adicionando um ativo novo
+
+Edite `tickers.txt` e adicione o código do ticker numa linha nova (uma seção
+por tipo, mas isso é só organização — o script lê tudo igual). Na próxima
+execução ele já entra na coleta.
+
+## Arquivo de saída
+
+`data/precos_historico.csv` cresce uma linha por ativo por dia:
+
+| data       | ticker  | preco_fechamento | capturado_em_utc         |
+|------------|---------|-------------------|---------------------------|
+| 2026-07-18 | KNIP11  | 98.45              | 2026-07-18T21:31:02+00:00 |
+
+Esse CSV é lido diretamente (via link "raw" do GitHub) para calcular o
+patrimônio marcado a mercado no painel.
